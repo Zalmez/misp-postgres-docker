@@ -1,6 +1,6 @@
-# MISP 2.5.47 with PostgreSQL on Azure Container Apps
+# MISP 2.5.48 with PostgreSQL on Azure Container Apps
 
-This fork is based on `misp-docker` commit `d2b82533d5335b2ff81eb7a8548757bbdbf4076c` and pins MISP `v2.5.47` at build time. PostgreSQL is a fresh-install path only. It does not migrate MySQL data.
+This fork is based on `misp-docker` commit `d2b82533d5335b2ff81eb7a8548757bbdbf4076c` and pins MISP `v2.5.48` at build time. PostgreSQL is a fresh-install path only. It does not migrate MySQL data.
 
 ## Image interface
 
@@ -13,19 +13,19 @@ Use the same image in two modes:
 
 Network-heavy galaxy, taxonomy, warning-list, notice-list, and object-template refreshes are excluded from the migration critical path. Set `MISP_BOOTSTRAP_UPDATE_COMPONENTS=true` only for a separately monitored bootstrap execution when those refreshes are required.
 
-PostgreSQL uses the Default correlation engine. On Demand correlation, search benchmarking, and `schemaDiagnostics` are not supported by MISP 2.5.47. Use `Admin verifyInstallBaseline` and `Admin migrationStatus` where appropriate.
+PostgreSQL uses the Default correlation engine. On Demand correlation, search benchmarking, and `schemaDiagnostics` are not supported by MISP 2.5.48. Use `Admin verifyInstallBaseline` and `Admin migrationStatus` where appropriate.
 
 ## Build and local verification
 
 ```bash
 docker build --platform linux/amd64 \
-  --build-arg CORE_TAG=v2.5.47 \
+  --build-arg CORE_TAG=v2.5.48 \
   --build-arg CORE_FLAVOR=slim \
   --build-arg PHP_API_VERSION=20240924 \
   --build-arg PHP_PACKAGE_VERSION=8.4 \
   --build-arg PYPI_SETUPTOOLS_VERSION='==84.0.0' \
   --build-arg PYPI_SUPERVISOR_VERSION='==4.3.0' \
-  -t misp-core-postgres:v2.5.47 core
+  -t misp-core-postgres:v2.5.48 core
 
 cp template.env .env
 docker compose -f docker-compose.yml -f docker-compose.postgres.yml up -d db redis
@@ -47,7 +47,7 @@ Use one single-revision Container App with the custom core container and version
 Deploy in this order:
 
 1. Back up and test restoration of PostgreSQL and persistent MISP data.
-2. Build AMD64 core and Nginx images from `v2.5.47`, push to ACR, and resolve immutable digests.
+2. Build AMD64 core and Nginx images from `v2.5.48`, push to ACR, and resolve immutable digests.
 3. Apply only references, secret bindings, storage registrations/mounts, the inactive app revision, and the manual job.
 4. Start the job with `az containerapp job start`, record the execution name, and wait for a successful terminal state.
 5. Activate the app revision only after the job succeeds; verify FPM-backed readiness through Nginx.
@@ -163,4 +163,4 @@ Use `data` sources or input resource IDs for resources owned by other states. Ne
 
 ## Production checks
 
-After authorized deployment, verify DNS and TLS from both app and job, persistent mount ownership, secure cookies and redirects, login/API/event/attribute/publication flows, Default correlation, a background job, a scheduler task, Redis sessions/workers, and FPM-backed readiness/liveness. MISP 2.5.47 PostgreSQL support has no full upstream CI or scale-performance qualification, so startup alone is not production readiness.
+After authorized deployment, verify DNS and TLS from both app and job, persistent mount ownership, secure cookies and redirects, login/API/event/attribute/publication flows, Default correlation, a background job, a scheduler task, Redis sessions/workers, and FPM-backed readiness/liveness. MISP 2.5.48 PostgreSQL support has no full upstream CI or scale-performance qualification, so startup alone is not production readiness.

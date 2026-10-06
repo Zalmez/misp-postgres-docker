@@ -16,7 +16,7 @@ services:
       retries: 30
 
   misp-core:
-    image: ${MISP_CORE_IMAGE:-misp-core-postgres:v2.5.47}
+    image: ${MISP_CORE_IMAGE:-misp-core-postgres:v2.5.48}
     environment: &postgres-environment
       DB_ENGINE: postgres
       POSTGRES_HOST: db
@@ -42,7 +42,7 @@ services:
       - misp_logs:/var/www/MISP/app/tmp/logs
 
   misp-bootstrap:
-    image: ${MISP_CORE_IMAGE:-misp-core-postgres:v2.5.47}
+    image: ${MISP_CORE_IMAGE:-misp-core-postgres:v2.5.48}
     profiles: ["bootstrap"]
     environment:
       <<: *postgres-environment
