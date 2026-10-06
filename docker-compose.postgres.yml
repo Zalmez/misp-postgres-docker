@@ -26,7 +26,7 @@ services:
       POSTGRES_DATABASE: ${POSTGRES_DATABASE:-misp}
       POSTGRES_SCHEMA: public
       POSTGRES_SSLMODE: disable
-      BASE_URL: https://localhost
+      BASE_URL: ${BASE_URL:-https://localhost}
       REDIS_HOST: redis
       REDIS_PASSWORD: ${REDIS_PASSWORD:-redispassword}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@admin.test}
