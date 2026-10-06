@@ -42,6 +42,23 @@ init_mysql() {
     fi
 }
 
+validate_postgres() {
+    local retries="$DB_CONNECT_RETRIES"
+    until psql -XAtqc 'SELECT 1' >/dev/null 2>&1; do
+        retries=$((retries - 1))
+        if (( retries <= 0 )); then
+            >&2 echo "... error: Could not connect to PostgreSQL on ${POSTGRES_HOST}:${POSTGRES_PORT}"
+            exit 1
+        fi
+        sleep "$DB_CONNECT_RETRY_INTERVAL"
+    done
+    if [[ "$(psql -XAtqc "SELECT to_regclass('${POSTGRES_SCHEMA}.attributes') IS NOT NULL")" != "t" ]]; then
+        >&2 echo "... error: MISP PostgreSQL schema is not initialized; run the bootstrap container first"
+        exit 1
+    fi
+    export DB_ALREADY_INITIALISED=true
+}
+
 redirect_logs() {
     tail -F /var/www/MISP/app/tmp/logs/error.log > /dev/stdout 2>/dev/null &
 }
@@ -132,6 +149,10 @@ change_php_vars() {
                 sed -i "/^listen =/s@=.*@= [::]:9002@" "$FILE"
             fi
         fi
+        if [[ "${DB_ENGINE}" == "postgres" ]]; then
+            sed -i '/^env\[PGSSLMODE\] =/d; /^env\[PGSSLROOTCERT\] =/d' "$FILE"
+            printf 'env[PGSSLMODE] = %s\nenv[PGSSLROOTCERT] = %s\n' "$PGSSLMODE" "$PGSSLROOTCERT" >> "$FILE"
+        fi
 
     done
 }
@@ -143,9 +164,13 @@ fi
 
 echo "INIT | Loading environment and functions"
 
-# Initialize MySQL
-echo "INIT | Initialize MySQL ..."
-init_mysql
+if [[ "${DB_ENGINE}" == "postgres" ]]; then
+    echo "INIT | Validate PostgreSQL ..."
+    validate_postgres
+else
+    echo "INIT | Initialize MySQL ..."
+    init_mysql
+fi
 
 echo "INIT | Change PHP values ..."
 change_php_vars
@@ -154,9 +179,15 @@ change_php_vars
 echo "INIT | Initialize MISP installation ..."
 /init_misp.sh
 
-# Run configure MISP script
-echo "INIT | Configure MISP installation ..."
-/configure_misp.sh
+# PostgreSQL configuration and component updates are performed by the
+# serialized bootstrap job. MySQL retains its existing startup behavior.
+if [[ "${DB_ENGINE}" == "mysql" ]]; then
+    echo "INIT | Configure MISP installation ..."
+    /configure_misp.sh
+else
+    echo "INIT | Start MISP workers ..."
+    supervisorctl start 'misp-workers:*'
+fi
 
 # Run customization scripts
 if [[ -x /custom/files/customize_misp.sh ]]; then

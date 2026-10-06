@@ -119,18 +119,39 @@ EOT
     # Avoid sed -i which creates temp files alongside the target,
     # broken on VirtioFS (Docker Desktop for Mac).
     chmod +w $MISP_APP_CONFIG_PATH/database.php
-    safe_sed_i "s/localhost/$MYSQL_HOST/" $MISP_APP_CONFIG_PATH/database.php
-    safe_sed_i "s/db\s*login/$MYSQL_USER/" $MISP_APP_CONFIG_PATH/database.php
-    safe_sed_i "s/3306/$MYSQL_PORT/" $MISP_APP_CONFIG_PATH/database.php
-    safe_sed_i "s/db\s*password/$MYSQL_PASSWORD/" $MISP_APP_CONFIG_PATH/database.php
-    safe_sed_i "s/'database' => 'misp'/'database' => '$MYSQL_DATABASE'/" $MISP_APP_CONFIG_PATH/database.php
+    if [[ "${DB_ENGINE}" == "postgres" ]]; then
+        php -r '
+            $config = [
+                "datasource" => "Database/PostgresObserverExtended",
+                "persistent" => false,
+                "host" => getenv("POSTGRES_HOST"),
+                "login" => getenv("POSTGRES_USER"),
+                "port" => (int) getenv("POSTGRES_PORT"),
+                "password" => getenv("POSTGRES_PASSWORD"),
+                "database" => getenv("POSTGRES_DATABASE"),
+                "schema" => getenv("POSTGRES_SCHEMA"),
+                "prefix" => "",
+                "encoding" => "utf8",
+                "flags" => [PDO::ATTR_STRINGIFY_FETCHES => true],
+            ];
+            file_put_contents($argv[1], "<?php\nclass DATABASE_CONFIG {\n    public \$default = " . var_export($config, true) . ";\n}\n");
+        ' "$MISP_APP_CONFIG_PATH/database.php"
+    else
+        safe_sed_i "s/localhost/$MYSQL_HOST/" $MISP_APP_CONFIG_PATH/database.php
+        safe_sed_i "s/db\s*login/$MYSQL_USER/" $MISP_APP_CONFIG_PATH/database.php
+        safe_sed_i "s/3306/$MYSQL_PORT/" $MISP_APP_CONFIG_PATH/database.php
+        safe_sed_i "s/db\s*password/$MYSQL_PASSWORD/" $MISP_APP_CONFIG_PATH/database.php
+        safe_sed_i "s/'database' => 'misp'/'database' => '$MYSQL_DATABASE'/" $MISP_APP_CONFIG_PATH/database.php
+    fi
 
     # Enable MySQL TLS immediately, as TLS requiring hosts like AWS RDS may banlist non-TLS connecting hosts
     # Conversely, this is also a good spot to disable it if required
 
-    update_database_tls_config ssl_ca "$MYSQL_TLS_CA" "$MISP_APP_CONFIG_PATH/database.php" "$MYSQL_TLS"
-    update_database_tls_config ssl_cert "$MYSQL_TLS_CERT" "$MISP_APP_CONFIG_PATH/database.php" "$MYSQL_TLS"
-    update_database_tls_config ssl_key "$MYSQL_TLS_KEY" "$MISP_APP_CONFIG_PATH/database.php" "$MYSQL_TLS"
+    if [[ "${DB_ENGINE}" == "mysql" ]]; then
+        update_database_tls_config ssl_ca "$MYSQL_TLS_CA" "$MISP_APP_CONFIG_PATH/database.php" "$MYSQL_TLS"
+        update_database_tls_config ssl_cert "$MYSQL_TLS_CERT" "$MISP_APP_CONFIG_PATH/database.php" "$MYSQL_TLS"
+        update_database_tls_config ssl_key "$MYSQL_TLS_KEY" "$MISP_APP_CONFIG_PATH/database.php" "$MYSQL_TLS"
+    fi
 
     echo "... initialize email.php settings"
     chmod +w $MISP_APP_CONFIG_PATH/email.php
@@ -191,6 +212,10 @@ EOT
         cp -R ${MISP_APP_FILES_PATH}.dist/* ${MISP_APP_FILES_PATH}
         touch ${MISP_APP_FILES_PATH}/INIT
     fi
+
+    mkdir -p /var/www/MISP/.gnupg
+    chown www-data:www-data /var/www/MISP/.gnupg
+    chmod 0700 /var/www/MISP/.gnupg
 }
 
 update_misp_data_files(){

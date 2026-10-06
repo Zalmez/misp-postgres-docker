@@ -7,6 +7,11 @@ export NUM_WORKERS_EMAIL=${NUM_WORKERS_EMAIL:-${WORKERS:-5}}
 export NUM_WORKERS_UPDATE=${NUM_WORKERS_UPDATE:-${WORKERS:-1}}
 export NUM_WORKERS_CACHE=${NUM_WORKERS_CACHE:-${WORKERS:-5}}
 
+export DB_ENGINE=${DB_ENGINE:-mysql}
+export MISP_CONTAINER_MODE=${MISP_CONTAINER_MODE:-server}
+export MISP_BOOTSTRAP_UPDATE_COMPONENTS=${MISP_BOOTSTRAP_UPDATE_COMPONENTS:-false}
+export DB_CONNECT_RETRIES=${DB_CONNECT_RETRIES:-100}
+export DB_CONNECT_RETRY_INTERVAL=${DB_CONNECT_RETRY_INTERVAL:-5}
 export MYSQL_HOST=${MYSQL_HOST:-db}
 export MYSQL_PORT=${MYSQL_PORT:-3306}
 export MYSQL_USER=${MYSQL_USER:-misp}
@@ -20,6 +25,21 @@ export MYSQL_TLS_KEY=${MYSQL_TLS_KEY}
 if [[ "${MYSQL_TLS}" != true ]]; then
   MYSQL_CMD+=" --skip-ssl"
   export MYSQL_CMD
+fi
+if [[ "${DB_ENGINE}" == "postgres" ]]; then
+    : "${POSTGRES_HOST:?POSTGRES_HOST is required when DB_ENGINE=postgres}"
+    : "${POSTGRES_USER:?POSTGRES_USER is required when DB_ENGINE=postgres}"
+    : "${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required when DB_ENGINE=postgres}"
+    : "${POSTGRES_DATABASE:?POSTGRES_DATABASE is required when DB_ENGINE=postgres}"
+    export POSTGRES_PORT=${POSTGRES_PORT:-5432}
+    export POSTGRES_SCHEMA=${POSTGRES_SCHEMA:-public}
+    export PGHOST=${POSTGRES_HOST}
+    export PGPORT=${POSTGRES_PORT}
+    export PGUSER=${POSTGRES_USER}
+    export PGPASSWORD=${POSTGRES_PASSWORD}
+    export PGDATABASE=${POSTGRES_DATABASE}
+    export PGSSLMODE=${POSTGRES_SSLMODE:-verify-full}
+    export PGSSLROOTCERT=${POSTGRES_SSLROOTCERT:-/etc/ssl/certs/ca-certificates.crt}
 fi
 export REDIS_HOST=${REDIS_HOST:-redis}
 export REDIS_PORT=${REDIS_PORT:-6379}
@@ -119,6 +139,10 @@ check_deprecated_env() {
 }
 
 check_deprecated_env
+
+if [[ "${MISP_CONTAINER_MODE}" == "bootstrap" ]]; then
+    exec /usr/bin/tini -- /bootstrap_postgres.sh
+fi
 
 # Setting Timezone for supervisord
 update-alternatives --install /etc/localtime localtime /usr/share/zoneinfo/${TZ} 0

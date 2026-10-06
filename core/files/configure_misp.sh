@@ -50,7 +50,7 @@ Passphrase: $GPG_PASSPHRASE
 %echo Done
 GPGEOF
         mkdir -p ${GPG_DIR}
-        gpg --homedir ${GPG_DIR} --gen-key --batch ${GPG_TMP}
+        sudo -u www-data gpg --homedir ${GPG_DIR} --gen-key --batch ${GPG_TMP}
         rm -f ${GPG_TMP}
     else
         echo "... found pre-generated GPG key in ${GPG_DIR}"
@@ -742,17 +742,25 @@ echo "MISP | Apply minimum configuration directives ..." && init_minimum_config
 
 echo "MISP | Initialize configuration ..." && init_configuration
 
-echo "MISP | Initialize workers ..." && init_workers
+if [[ "${MISP_CONTAINER_MODE:-server}" != "bootstrap" ]]; then
+    echo "MISP | Initialize workers ..." && init_workers
+fi
 
-echo "MISP | Apply DB updates ..." && apply_updates
+if [[ "${DB_ENGINE:-mysql}" == "mysql" ]]; then
+    echo "MISP | Apply DB updates ..." && apply_updates
+fi
 
 echo "MISP | Configure GPG key ..." && configure_gnupg
 
-echo "MISP | Init default user and organization ..." && init_user
+if [[ "${DB_ENGINE:-mysql}" == "mysql" ]]; then
+    echo "MISP | Init default user and organization ..." && init_user
+fi
 
 echo "MISP | Resolve critical issues ..." && apply_critical_fixes
 
-echo "MISP | Start component updates ..." && update_components
+if [[ "${MISP_CONTAINER_MODE:-server}" != "bootstrap" || "${MISP_BOOTSTRAP_UPDATE_COMPONENTS:-false}" == "true" ]]; then
+    echo "MISP | Start component updates ..." && update_components
+fi
 
 echo "MISP | Resolve non-critical issues ..." && apply_optional_fixes
 
@@ -774,7 +782,9 @@ echo "MISP | Set Up Session ..." && set_up_session
 
 echo "MISP | Set Up Proxy ..." && set_up_proxy
 
-echo "MISP | Create default Scheduled Tasks ..." && create_default_scheduled_tasks
+if [[ "${DB_ENGINE:-mysql}" == "mysql" ]]; then
+    echo "MISP | Create default Scheduled Tasks ..." && create_default_scheduled_tasks
+fi
 
 echo "MISP | Configure misp-guard CA certificate ..." && configure_misp_guard_ca
 

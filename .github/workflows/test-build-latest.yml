@@ -36,7 +36,12 @@ jobs:
         run: cp template.env .env
 
       - name: Validate Docker Compose configuration
-        run: docker compose -f docker-compose.yml config -q
+        run: |
+          docker compose -f docker-compose.yml config -q
+          docker compose -f docker-compose.yml -f docker-compose.postgres.yml config -q
+
+      - name: Validate database scripts
+        run: bash -n core/files/entrypoint.sh core/files/entrypoint_fpm.sh core/files/init_misp.sh core/files/configure_misp.sh core/files/bootstrap_postgres.sh
 
       - name: Build
         uses: docker/bake-action@v7
